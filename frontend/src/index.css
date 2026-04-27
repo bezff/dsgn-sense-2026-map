@@ -1,0 +1,30 @@
+body {
+  margin: 0;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #ffffff;
+  color: #000000;
+}
+
+body.braille-mode,
+body.braille-mode * {
+  font-family: 'Apple Braille', 'Braille29', 'Noto Sans Braille', 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Скрываем скроллбары для красоты, сохраняя функциональность */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-left: 1px solid #000;
+}
+::-webkit-scrollbar-thumb {
+  background: #000;
+}
