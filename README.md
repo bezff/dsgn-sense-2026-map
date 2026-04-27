@@ -71,18 +71,6 @@ frontend/    — React-приложение
 start.sh     — локальный запуск бэка + фронта
 ```
 
-## Имя репозитория и описание (для GitHub)
-
-Если удобно копировать в настройки репозитория:
-
-| Поле | Текст |
-|------|--------|
-| **Repository name** | `osyanie-case9-map` |
-| **Description** | Интерактивная карта с метками и админкой — кейс 9 Yadro × «Осязание», олимпиада DSGN Sense (ЦУ Москва, апрель 2026). React + Node.js + SQLite. |
-
-**Топики (topics), если нужны:** `react`, `typescript`, `nodejs`, `express`, `sqlite`, `hackathon`, `accessibility`, `map`
-
-Текст для **GitHub Release** лежит в [`RELEASE.md`](./RELEASE.md).
 
 ---
 
