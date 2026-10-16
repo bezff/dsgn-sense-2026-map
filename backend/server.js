@@ -1,5 +1,4 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
@@ -8,20 +7,43 @@ const db = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const uploadsDir = path.join(__dirname, 'uploads');
+
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+}
+
+const uploadFilePath = (url) => {
+  if (typeof url !== 'string' || !url.startsWith('/uploads/')) return null;
+  return path.join(uploadsDir, path.basename(url));
+};
+
+const fileExists = (url) => {
+  const filePath = uploadFilePath(url);
+  return Boolean(filePath && fs.existsSync(filePath));
+};
+
+const publicMarker = (row) => {
+  if (!row || !row.photo_url || fileExists(row.photo_url)) return row;
+  return { ...row, photo_url: null };
+};
 
 app.use(cors());
 app.use(express.json());
 
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', (req, res, next) => {
+  const filePath = path.join(uploadsDir, path.basename(req.path));
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+  next();
+});
+app.use('/uploads', express.static(uploadsDir));
 app.use(express.static(path.join(__dirname, '../frontend/build')));
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, 'uploads');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir);
-    }
-    cb(null, uploadDir);
+    cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -52,10 +74,11 @@ app.post('/api/map/background', upload.single('mapImage'), (req, res) => {
 });
 
 app.get('/api/map/background', (req, res) => {
-  db.get(`SELECT * FROM maps ORDER BY created_at DESC LIMIT 1`, [], (err, row) => {
+  db.all(`SELECT * FROM maps ORDER BY created_at DESC`, [], (err, rows) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
+    const row = (rows || []).find((item) => fileExists(item.image_url));
     if (!row) {
       return res.status(404).json({ error: 'Map not found' });
     }
@@ -68,7 +91,7 @@ app.get('/api/markers', (req, res) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
-    res.json(rows);
+    res.json(rows.map(publicMarker));
   });
 });
 
@@ -91,8 +114,11 @@ app.post('/api/markers', (req, res) => {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
-      db.get(`SELECT * FROM markers WHERE id = ?`, [this.lastID], (err, row) => {
-        res.json(row);
+      db.get(`SELECT * FROM markers WHERE id = ?`, [this.lastID], (selectErr, row) => {
+        if (selectErr) {
+          return res.status(500).json({ error: selectErr.message });
+        }
+        res.json(publicMarker(row));
       });
     }
   );
@@ -110,8 +136,15 @@ app.post('/api/markers/:id/photo', upload.single('photo'), (req, res) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
-    db.get(`SELECT * FROM markers WHERE id = ?`, [id], (err, row) => {
-      res.json(row);
+    if (this.changes === 0) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(404).json({ error: 'Marker not found' });
+    }
+    db.get(`SELECT * FROM markers WHERE id = ?`, [id], (selectErr, row) => {
+      if (selectErr) {
+        return res.status(500).json({ error: selectErr.message });
+      }
+      res.json(publicMarker(row));
     });
   });
 });
@@ -148,7 +181,7 @@ app.put('/api/markers/:id', (req, res) => {
           if (selectErr) {
             return res.status(500).json({ error: selectErr.message });
           }
-          res.json(row);
+          res.json(publicMarker(row));
         });
       }
     );
@@ -160,6 +193,9 @@ app.delete('/api/markers/:id', (req, res) => {
   db.run(`DELETE FROM markers WHERE id = ?`, [id], function(err) {
     if (err) {
       return res.status(500).json({ error: err.message });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Marker not found' });
     }
     res.json({ message: 'Marker deleted' });
   });

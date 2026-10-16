@@ -423,6 +423,9 @@ const MapPage: React.FC = () => {
 
   const mapImageRef = useRef<HTMLImageElement>(null);
   const hasFocused = useRef(false);
+  const setTransformRef = useRef<
+    ((x: number, y: number, scale: number, animationTime?: number) => void) | null
+  >(null);
   const closeSoundRef = useRef<HTMLAudioElement>(new Audio(closeSound));
 
   useEffect(() => {
@@ -457,6 +460,23 @@ const MapPage: React.FC = () => {
 
   const handleMarkerClick = (marker: MarkerData) => {
     setSelectedMarker(marker);
+  };
+
+  const focusBuilding = () => {
+    const img = mapImageRef.current;
+    const setTransform = setTransformRef.current;
+    if (hasFocused.current || currentBuildingId == null || !img || !setTransform || !img.naturalWidth) {
+      return;
+    }
+
+    const markerToFocus = markers.find((marker) => marker.id === currentBuildingId);
+    if (!markerToFocus) return;
+
+    hasFocused.current = true;
+    const markerX = img.offsetWidth * (markerToFocus.x_percent / 100);
+    const markerY = img.offsetHeight * (markerToFocus.y_percent / 100);
+    setTransform(-markerX + window.innerWidth / 2, -markerY + window.innerHeight / 2, 1.5, 800);
+    window.setTimeout(() => setSelectedMarker(markerToFocus), 1200);
   };
 
   const closeModal = () => {
@@ -516,23 +536,7 @@ const MapPage: React.FC = () => {
           doubleClick={{ disabled: true }}
         >
           {({ zoomIn, zoomOut, resetTransform, setTransform }) => {
-            if (!hasFocused.current && currentBuildingId && markers.length > 0 && mapImageRef.current) {
-              const markerToFocus = markers.find(m => m.id === currentBuildingId);
-              if (markerToFocus && mapImageRef.current.complete) {
-                hasFocused.current = true;
-                setTimeout(() => {
-                  const mapWidth = mapImageRef.current!.offsetWidth;
-                  const mapHeight = mapImageRef.current!.offsetHeight;
-                  
-                  const markerX = mapWidth * (markerToFocus.x_percent / 100);
-                  const markerY = mapHeight * (markerToFocus.y_percent / 100);
-                  
-                  setTransform(-markerX + window.innerWidth / 2, -markerY + window.innerHeight / 2, 1.5, 800);
-                  
-                  setTimeout(() => setSelectedMarker(markerToFocus), 1200);
-                }, 500);
-              }
-            }
+            setTransformRef.current = setTransform;
 
             return (
               <>
@@ -544,10 +548,12 @@ const MapPage: React.FC = () => {
                 
                 <TransformComponent wrapperStyle={{ width: '100%', height: '100%' }}>
                   <MapContentWrapper>
-                    <MapImage 
+                    <MapImage
                       ref={mapImageRef}
-                      src={`${getBaseUrl()}${mapData.image_url}`} 
+                      src={`${getBaseUrl()}${mapData.image_url}`}
                       alt="Карта площадки"
+                      onLoad={focusBuilding}
+                      onError={() => setMapData(null)}
                     />
                     
                     {markers.map((marker, index) => {

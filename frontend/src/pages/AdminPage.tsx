@@ -753,11 +753,12 @@ const AdminPage: React.FC = () => {
         <MapArea>
           {mapData ? (
             <MapContentWrapper>
-              <MapImage 
+              <MapImage
                 ref={mapRef}
-                src={`${getBaseUrl()}${mapData.image_url}`} 
+                src={`${getBaseUrl()}${mapData.image_url}`}
                 alt="Фон карты"
                 onClick={handleMapClick}
+                onError={() => setMapData(null)}
               />
               
               {markers.map(marker => (

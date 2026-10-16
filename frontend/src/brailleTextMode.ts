@@ -55,12 +55,17 @@ const toBraille = (text: string): string => {
 };
 
 const convertTextNode = (node: Text): void => {
-  if (originalTextNodes.has(node) || shouldSkipNode(node)) return;
-  const sourceText = node.nodeValue ?? '';
-  if (!sourceText.trim()) return;
+  if (shouldSkipNode(node)) return;
+  const current = node.nodeValue ?? '';
+  if (!current.trim()) return;
 
-  originalTextNodes.set(node, sourceText);
-  node.nodeValue = toBraille(sourceText);
+  const knownOriginal = originalTextNodes.get(node);
+  if (knownOriginal !== undefined && current === toBraille(knownOriginal)) return;
+
+  originalTextNodes.set(node, current);
+  const braille = toBraille(current);
+  if (braille === current) return;
+  node.nodeValue = braille;
 };
 
 const processAllTextNodes = (): void => {
@@ -76,6 +81,11 @@ const processAllTextNodes = (): void => {
 const startObserver = (): void => {
   observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
+      if (mutation.type === 'characterData' && mutation.target.nodeType === Node.TEXT_NODE) {
+        convertTextNode(mutation.target as Text);
+        continue;
+      }
+
       mutation.addedNodes.forEach((addedNode) => {
         if (addedNode.nodeType === Node.TEXT_NODE) {
           convertTextNode(addedNode as Text);
@@ -97,7 +107,8 @@ const startObserver = (): void => {
 
   observer.observe(document.body, {
     childList: true,
-    subtree: true
+    subtree: true,
+    characterData: true
   });
 };
 

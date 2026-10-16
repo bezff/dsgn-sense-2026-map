@@ -7,25 +7,20 @@ cd "$(dirname "$0")"
 
 echo "🔍 Проверка портов 3000 и 3001..."
 
-# Функция для завершения процесса на указанном порту
-kill_port() {
-  local port=$1
-  local pids=$(lsof -ti tcp:$port)
-  
-  if [ ! -z "$pids" ]; then
-    # Заменяем переносы строк на пробелы, чтобы kill обработал все PID
-    pids_inline=$(echo $pids | tr '\n' ' ')
-    echo "⚠️  Порт $port занят процессами: $pids_inline. Завершаем..."
-    kill -9 $pids_inline
-    echo "✅ Процессы на порту $port успешно завершены."
+busy=0
+for port in 3000 3001; do
+  if lsof -ti tcp:"$port" >/dev/null 2>&1; then
+    echo "Порт $port занят. Скрипт чужой процесс не убивает."
+    busy=1
   else
-    echo "✅ Порт $port свободен."
+    echo "Порт $port свободен."
   fi
-}
+done
 
-# Очищаем порты
-kill_port 3000
-kill_port 3001
+if [ "$busy" -eq 1 ]; then
+  echo "Освободи порт и запусти снова."
+  exit 1
+fi
 
 echo "🚀 Запуск проекта..."
 
